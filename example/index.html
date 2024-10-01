@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>6DoF Object Tracking</title>
+</head>
+<body>
+    <h1>6DoF Object Tracking for Web</h1>
+    <video id="video" width="640" height="512" controls loop>
+        <source src="assets/video.mp4" type="video/mp4">
+    </video>
+    <canvas id="frame" width="640px" height="512px" style="display: none;"></canvas>
+    <div id="three" style="width: 640px; height: 512px;"></div>
+    <canvas id="prob" width="640px" height="512px"></canvas>
+
+</body>
+</html>
+
+<script type="module">
+import initSRT3D from './srt3d.js';
+import { THREE, THREESpace, OBJLoader } from './render.js';
+
+// load module
+let SRT3D = await initSRT3D();
+const Canvas = new SRT3D.Canvas(640, 512);
+// const variables
+let model = null;
+let tracker = null;
+let object = null;
+const scene = new THREESpace({animation: true});
+const init_pose = [
+    [0.78603, -0.587438, 0.19255, 0.281848],
+    [-0.604647, -0.795404, 0.0416517, 0.166599],
+    [0.12868, -0.149164, -0.980401, -0.731918],
+    [0, 0, 0, 1]
+]
+
+function get_context(element_id) {
+    const canvas = document.getElementById(element_id);
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    return ctx;
+}
+
+const frame_ctx = get_context('frame');
+const prob_ctx = get_context('prob');
+
+// ********** THREE.js ********** //
+function initScene() {
+    const ele = document.getElementById('three');
+    scene.bind(ele)
+    .resetSize(ele.offsetWidth, ele.offsetHeight)
+    .fitProjection();
+    // camera
+    const cam = scene.addCamera('perspective', {fov: 56.77, aspect: 640/512, near: 0.1, far: 1000});
+    scene.getCamera(cam).lookAt(0, -1, 0);
+    scene.addOrbitControl(cam);
+    const grid = new THREE.GridHelper(10, 10, 0xcccccc);
+    const light = new THREE.DirectionalLight(0xFFFFFF, 3);
+    light.position.set(0, 10, 0);
+    light.target.position.set(-5, 0, 0);
+    scene.addObjects([light, light.target, grid]);
+    // add object
+    new OBJLoader().load('assets/Cat.obj', function(data) {
+        data.traverse(function(child) {
+            if (child instanceof THREE.Mesh) {
+                child.material = new THREE.MeshNormalMaterial();
+            }
+        });
+        object = data
+        object.scale.set(0.001, 0.001, 0.001);
+        updateModel(init_pose);
+        scene.addObjects(object);
+    });
+
+}
+
+// ********** SRT3D.js ********** //
+// load object model & init tracker
+function initObjectModel() {
+    return new Promise((resolve, reject) => {
+        fetch('assets/Cat.meta')
+        .then(response => response.arrayBuffer())
+        .then(buffer => {
+            const filename = '/obj.meta';
+            SRT3D.FS.writeFile(filename, new Uint8Array(buffer));
+            console.log(`File ${filename} has been written to MEMFS.`);
+            model = new SRT3D.Model('obj', filename, {
+                threshold_on_init: 0.0,
+                threshold_on_tarck: 0.0
+            });
+            tracker = new SRT3D.Tracker(
+                640, 512, {fx: 481.34, fy: 481.82, cx: 329.40, cy: 260.37}
+            )
+            tracker.add_model(model);
+            tracker.setup()
+            // set init pose
+            model.set_pose_gl(init_pose)
+            resolve();
+        });
+    });
+}
+
+function updateModel(pose) {
+    let Tdata = THREESpace.formatTwcArray(pose.flat());
+    object.position.copy(Tdata.t);
+    object.rotation.setFromRotationMatrix(Tdata.R);
+    scene.render(); 
+}
+
+// start tracking
+
+initScene();
+
+initObjectModel()
+.then(() => {
+    document.getElementById('video').addEventListener('play', function() {
+        const drawFrame = (timestamp) => {
+            if (!video.paused && !video.ended) {
+                // read canvas
+                frame_ctx.drawImage(video, 0, 0, 640, 512);
+                const frame_data = frame_ctx.getImageData(0, 0, 640, 512);
+                Canvas.data.set(frame_data.data);
+                tracker.update(Canvas);
+                
+                // // log confidence
+                console.log('conf:',model.conf);
+
+                // draw probablity map
+                var prob_image = model.prob_image;
+                const prob_image_data = new ImageData(new Uint8ClampedArray(prob_image.data), 640, 512);
+                prob_ctx.putImageData(prob_image_data, 0, 0);
+                prob_image.delete();
+                
+                // update model pose in THREE.js scene
+                updateModel(model.pose_gl);
+                //
+                requestAnimationFrame(drawFrame);
+            }
+        };
+        requestAnimationFrame(drawFrame);
+    });
+})
+
+
+
+
+
+
+
+</script>

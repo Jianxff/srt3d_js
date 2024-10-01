@@ -3,7 +3,7 @@
 Emscripten version for [*SRT3D: Region-Based 6DoF Object Tracking*](https://github.com/DLR-RM/3DObjectTracking/tree/master/SRT3D)
 
 
-https://github.com/user-attachments/assets/ce663575-67e7-4d38-b25f-748b86e890e7
+https://github.com/user-attachments/assets/1ba9e1cf-a8ab-4b55-b1b0-98818131f52a
 
 
 

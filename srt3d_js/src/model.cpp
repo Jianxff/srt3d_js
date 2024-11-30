@@ -141,6 +141,20 @@ bool Model::LoadModel() {
     template_views_.push_back(std::move(tv));
   }
   data_ifs.close();
+
+
+  // std::cout << "Model " << name_ << " loaded from " << data_path << std::endl;
+  // std::cout << "  - Sphere radius: " << sphere_radius_file << std::endl;
+  // std::cout << "  - Number of template views: " << n_template_views << std::endl;
+  // std::cout << "  - Number of points per template view: " << n_points_ << std::endl;
+  // std::cout << "  - Use random seed: " << use_random_seed_file << std::endl;
+  // std::cout << template_views_[0].data_points[0].center_f_body << std::endl;
+  // std::cout << template_views_[0].data_points[0].normal_f_body << std::endl;
+  // std::cout << template_views_[0].data_points[0].foreground_distance << std::endl;
+  // std::cout << template_views_[0].data_points[0].background_distance << std::endl;
+  // std::cout << template_views_[0].orientation << std::endl;
+
+
   return true;
 }
 
